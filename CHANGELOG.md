@@ -7,6 +7,37 @@ follows [Semantic Versioning](https://semver.org/) (MAJOR.MINOR.PATCH).
 The version number shown here matches the `<meta name="app-version">` tag in
 `index.html` and the `v{version}` badge in the page's footer.
 
+## [1.1.0] — 2026-09-10
+
+### Added
+- **Real official language chips**, replacing the v1.0.0 English-only scope cut:
+  English, Afrikaans, isiZulu, isiXhosa, isiNdebele, Sepedi, Sesotho, Setswana,
+  siSwati, Tshivenda and Xitsonga — 11 of South Africa's 12 official languages
+  (source: South African Parliament press release confirming all 12, checked
+  2026-09-10). The 12th, South African Sign Language (added by the 2023
+  constitutional amendment), is a visual-gestural language and isn't representable
+  by this site's text-string UI, so it's explained in the translate panel's prose
+  instead of given a fake text chip.
+- isiXhosa, Sesotho, Setswana and Tshivenda reuse zwispqosd's existing best-effort-
+  draft translations for the same standard languages (isiXhosa/Xhosa, Sesotho/
+  Sotho, Setswana/Tswana, Tshivenda/Venda are shared across the border) — legitimate
+  reuse, still marked unreviewed. Xitsonga also reuses a Zimbabwe draft, but it's
+  flagged lower-confidence in the code comments: it's sourced from Zimbabwe's
+  Shangani entry, a related dialect rather than standard South African Xitsonga.
+  Afrikaans, isiZulu, Sepedi, siSwati and isiNdebele have no legitimate cross-border
+  source — critically, South Africa's isiNdebele (Southern Ndebele) is a different
+  language from Zimbabwe's Ndebele (Northern Ndebele) despite the similar name, so
+  it was NOT conflated with Zimbabwe's existing Ndebele draft — so those five ship
+  as chips with empty translation content, falling back to English with the
+  standard "🚧 need translation" badge rather than being guessed.
+- The suggest/endorse community-translation flow now covers all 11 text-chip
+  languages.
+
+### Fixed
+- Corrected the README/CHANGELOG "English only" v1 scope note, which undersold what
+  "replicate the same pattern as Zimbabwe" was always meant to include — Zimbabwe's
+  own site treats its official/constitutional languages as core, not optional.
+
 ## [1.0.0] — 2026-09-10
 
 ### Added
@@ -27,9 +58,7 @@ The version number shown here matches the `<meta name="app-version">` tag in
   in `normalizePhone`/`isValidPhone`.
 
 ### Notes — deliberate v1 scope cuts (see README.md for the full list)
-- English-only UI (community-translation code stays functional for English wording
-  fixes; South Africa's 12 official languages are a future addition, not
-  fabricated here).
+- English-only UI at launch — superseded in v1.1.0, see above.
 - `ISP_ASN` and `PHONE_ISP_PREFIXES` both start empty — no verified data compiled
   for this build; both already degrade gracefully when empty.
 - Cloudflare Radar national-benchmark feature not invoked (Zimbabwe-only edge

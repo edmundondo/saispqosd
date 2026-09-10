@@ -17,10 +17,25 @@ README for details.
 
 ## What's different about this site (v1 scope)
 
-- **English only.** South Africa has 12 official languages, but populating verified
-  translations for all of them is out of scope for this build — a deliberate v1
-  scope cut, not a bug. The community-translation code path exists and works for
-  English wording fixes today; adding a new language later needs no rebuild.
+- **11 of South Africa's 12 official languages as chips (English, Afrikaans,
+  isiZulu, isiXhosa, isiNdebele, Sepedi, Sesotho, Setswana, siSwati, Tshivenda,
+  Xitsonga); the 12th, South African Sign Language, is explained in prose instead**
+  — SASL was added as an official language by the 2023 constitutional amendment
+  (source: South African Parliament press release, checked 2026-09-10), but as a
+  visual-gestural language it isn't representable by this site's text-based chip/
+  string UI, so it's called out in the translate panel rather than given a fake
+  text chip. Of the 11 text chips, isiXhosa, Sesotho, Setswana and Tshivenda ship
+  with real best-effort-draft translations reused from the Zimbabwe site's existing
+  (unreviewed) drafts for the same standard languages (isiXhosa/Xhosa, Sesotho/
+  Sotho, Setswana/Tswana, Tshivenda/Venda). Xitsonga also has a reused draft, but
+  flagged lower-confidence — it's derived from Zimbabwe's Shangani entry, a related
+  dialect rather than the standard-Xitsonga-as-taught-in-South-Africa. Afrikaans,
+  isiZulu, Sepedi, siSwati and isiNdebele have no legitimate cross-border source
+  (South Africa's isiNdebele/Southern Ndebele is a different language from
+  Zimbabwe's Ndebele/Northern Ndebele, despite the similar name — not conflated
+  here) so those four chips exist and fall back cleanly to English with a
+  "🚧 need translation" badge rather than being guessed. Community translation via
+  the suggest/endorse flow works for all 11 text-chip languages today.
 - **No backbone (RIPEstat/ASN) badges.** `ISP_ASN` is intentionally empty — no
   verified ASN-to-operator mapping has been compiled for South Africa's ten tracked
   providers yet. The badge simply doesn't render for any ISP without an entry, the
