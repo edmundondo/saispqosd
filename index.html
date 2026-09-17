@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="1.1.0">
+<meta name="app-version" content="1.2.0">
 <title>South Africa ISP Tracker</title>
 <style>
   :root{
@@ -133,11 +133,17 @@
   .pill.estimated{background:rgba(232,185,63,.15);color:var(--yellow);border-color:rgba(232,185,63,.35);}
   .pill.unconfirmed{background:rgba(92,107,128,.18);color:var(--grey);border-color:rgba(92,107,128,.4);}
 
+  /* Auto-height expand/collapse via CSS grid (0fr -> 1fr): sizes to whatever the
+     content actually needs on any device, instead of clipping anything past a fixed
+     pixel cap (a fixed max-height used to silently cut off the bottom of tall detail
+     panels — e.g. the submit button below a long rating form — with no way to reach
+     the clipped part, since overflow was hidden and it wasn't just a page-scroll issue). */
   .detail{
-    max-height:0;overflow:hidden;transition:max-height .3s ease;
+    display:grid;grid-template-rows:0fr;overflow:hidden;transition:grid-template-rows .3s ease;
   }
-  .row.open .detail{max-height:1200px;margin-top:12px;}
+  .row.open .detail{grid-template-rows:1fr;margin-top:12px;}
   .detail-inner{
+    min-height:0;overflow:hidden;
     border-top:1px solid var(--border);padding-top:12px;font-size:13px;color:#c3cddb;line-height:1.55;
   }
   .detail-inner .src{color:var(--muted);font-size:12px;margin-top:8px;display:block;}
@@ -387,7 +393,8 @@
     .row{border:1px solid #ccc;break-inside:avoid;}
     .pill{border:1px solid #999;}
     .caret{display:none;}
-    .row .detail{max-height:none!important;margin-top:8px!important;}
+    .row .detail{grid-template-rows:1fr!important;margin-top:8px!important;}
+    .row .detail-inner{overflow:visible!important;}
     .qos-actions,.rate-form,.impact-form-card,.status-report-form,.speed-report-form{display:none!important;}
   }
 </style>
@@ -536,6 +543,7 @@
         <div class="loc-row" style="margin-top:12px;">
           <button class="btn small" id="impactLocBtn" type="button">📍 <span id="impactLocLabel">Use my location</span></button>
           <select class="city-select" id="impactCitySelect"><option value="">…</option></select>
+          <select class="city-select" id="impactAreaSelect"><option value="">…</option></select>
         </div>
         <div class="loc-status" id="impactLocStatus"></div>
         <textarea class="comment-box" id="impactComment" maxlength="500" style="margin-top:10px;" placeholder="Optional: tell us more…"></textarea>
@@ -602,7 +610,7 @@
       <span class="matokipedo-tagline">Live infrastructure monitoring by Matokipedo</span>
     </div>
     <span class="reset-link" id="resetQos">refresh / reset local data</span>
-    <div style="font-size:11px;color:var(--muted);margin-top:6px;">v1.1.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;">v1.2.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
   </footer>
 </div>
 
@@ -839,6 +847,8 @@ const I18N = {
     your_rating: "Your rating",
     btn_use_location: "Use my location",
     city_manual: "…or choose city manually",
+    area_manual: "Area / suburb (optional)",
+    area_none: "Whole city / not sure",
     comment_placeholder: "Optional: describe your experience (speed, reliability, outages)…",
     btn_submit_rating: "Submit rating",
     no_ratings_yet: "No ratings yet",
@@ -1514,6 +1524,38 @@ const CITIES = [
   {name:"Kimberley", lat:-28.7282, lon:24.7499}
 ];
 
+/* Per-city sourcing notes (area/suburb data), for the record:
+   - Johannesburg: Sourced from Wikipedia's 'Suburbs of Johannesburg' article (regional breakdown of Inner City, Northern, North-Western, Southern and Eastern suburbs plus Soweto) and the 'City of Johannesburg Metropolitan Municipality' article's geography/regions content, cross-checked against individually-verified Wikipedia articles for Bryanston, Rivonia, Melrose and Norwood. High confidence for named entries; the wider metro (e.g. Alexandra, Sandton, Randburg, Roodepoort, Soweto sub-areas, Midrand) is very well documented, though this is not a fully exhaustive list of all ~500 Johannesburg suburbs.
+   - Cape Town: Sourced from Wikipedia's 'List of Cape Town suburbs' article, which is one of the most complete suburb lists on Wikipedia for any South African city, covering City Bowl, Atlantic Seaboard, Southern Suburbs, Northern Suburbs, Cape Flats (including Khayelitsha, Mitchells Plain, Gugulethu, Langa, Nyanga townships), and the greater metro (Helderberg, Durbanville, Blue Downs). Very high confidence, near-exhaustive for a major metro.
+   - Durban: Sourced from Wikipedia's 'List of Durban suburbs' article, covering the eThekwini Metropolitan Municipality's North, Central (Berea/Morningside/Glenwood belt), South (Bluff, Wentworth, Merebank, Isipingo, Umlazi), Outer West (Pinetown, Hillcrest, Kloof, Westville) and Chatsworth/KwaMashu/Inanda areas. High confidence and broad coverage including major townships (Umlazi, KwaMashu, Inanda, Lamontville, Chatsworth).
+   - Pretoria: Sourced from Wikipedia's 'List of Pretoria suburbs' article, covering City of Tshwane suburbs from the central grid (Sunnyside, Arcadia, Brooklyn) through the eastern suburbs (Lynnwood, Menlyn, Faerie Glen, Moreleta Park, Waterkloof) and townships (Atteridgeville, Mamelodi, Ga-Rankuwa, Mabopane, Soshanguve/Shoshanguve, Hammanskraal). Very high confidence, one of the most exhaustive lists among the 10 cities.
+   - Gqeberha: Sourced from the 'Nelson Mandela Bay Metropolitan Municipality' and 'Gqeberha' Wikipedia articles for core suburbs and major townships (New Brighton, KwaNobuhle/Kariega, Motherwell, Zwide, Kwazakele, Missionvale, Bethelsdorp, Helenvale), supplemented by cross-checking well-known residential suburb names (Walmer, Summerstrand, Newton Park, Mill Park, Kabega, Lorraine, Cotswold, Charlo, Sydenham, Sunridge Park) against a detailed local-history reference (thecasualobserver.co.za, an area-name-derivation piece) and property-listing sites. Moderate-to-good confidence: the townships and best-known suburbs are solidly Wikipedia-sourced; the finer residential-suburb layer relies on a secondary local source rather than a dedicated Wikipedia suburb-list article, so it is less authoritative than the Johannesburg/Cape Town/Durban/Pretoria lists. Obscure historical sub-township names from that source were excluded as unverifiable.
+   - Bloemfontein: Sourced from the 'Bloemfontein' Wikipedia article's geography/history sections, which name both the historic white suburbs (Fichardt Park, Universitas, Waverley, Langenhoven Park, Willows) and the historically black/coloured townships (Mangaung, Batho, Bochabela, Heidedal, Rocklands, Phahameng, Phelindaba), plus outlying Mangaung Metro towns Botshabelo and Thaba Nchu. Good confidence but not from a dedicated suburb-list article, so coverage is solid rather than exhaustive for a mid-size city.
+   - East London: Sourced from the 'East London, South Africa' Wikipedia article, covering the historic central/coastal suburbs (Quigney, Southernwood, Vincent, Nahoon, Beacon Bay, Gonubie, Berea) and the major townships (Mdantsane, Duncan Village, Gompo). Good confidence; East London does not have a dedicated Wikipedia suburb-list article so this draws on the general city article, giving solid but not exhaustive coverage.
+   - Polokwane: Sourced from the 'Polokwane' Wikipedia article (suburbs, townships and settlement clusters) and the official Polokwane Local Municipality website's 'Our City - Our Townships and Suburbs' page, which names the settlement clusters (Seshego, Mankweng, Molepo/Chuene/Maja, Sebayeng/Dikgale). Moderate confidence — smaller city, no dedicated suburb-list article, but core suburbs and all major townships are confirmed by both Wikipedia and the official municipal site.
+   - Mbombela: Sourced from the 'Mbombela' Wikipedia article, which lists the town's suburbs (West Acres, Sonheuwel, Steiltes, Riverside, Valencia Park) and surrounding townships (KaNyamazane, KaBokweni, Matsulu, Kamagugu, Msogwaba). Moderate confidence — smaller city, general city article rather than a dedicated suburb list, but reasonably solid coverage of both suburbs and townships.
+   - Kimberley: Sourced from the 'Kimberley, Northern Cape' Wikipedia article's demographic/census breakdown of the city's suburbs and townships (including Galeshewe, the major historically black township, and smaller suburbs such as Beaconsfield, Herlear, Hadison Park, Verwoerd Park). Moderate confidence — smallest of the 10 cities, general city article rather than dedicated suburb list, but coverage is solid for a city this size.
+*/
+const AREAS = {
+  "Johannesburg": ["Aeroton", "Alexandra", "Auckland Park", "Bedfordview", "Bellevue", "Benrose", "Berea", "Bertrams", "Braamfontein", "Bruma", "Bryanston", "Chartwell", "City Deep", "City West", "Constantia Kloof", "Craighall Park", "Dainfern", "Denver", "Diepkloof", "Diepmeadow", "Diepsloot", "Dobsonville", "Doornfontein", "Doornkop", "Drieziek", "Ebony Park", "Edenvale", "Eldorado Park", "Ennerdale", "Fordsburg", "Fourways", "Greenside", "Hillbrow", "Houghton", "Hyde Park", "Itsoseng", "Ivory Park", "Jeppestown", "Johannesburg South", "Joubert Park", "Kaalfontein", "Kagiso", "Kanana Park", "Killarney", "Kya Sand", "Lakeside", "Lanseria", "Lawley", "Lehae", "Lenasia", "Meadowlands", "Melrose", "Melrose Arch", "Melville", "Midrand", "Morningside", "Newtown", "Northcliff", "Northgate", "Norwood", "Oaklands", "Orange Farm", "Pageview", "Parkhurst", "Parktown", "Parktown North", "Parkwood", "Protea Glen", "Rabie Ridge", "Randburg", "Randfontein", "Rietfontein", "Rivonia", "Roodepoort", "Rosebank", "Rosettenville", "Sandton", "Saxonwold", "Sophiatown", "Soweto", "Stretford", "Strijdom Park", "Sunninghill", "Triomf", "Troyeville", "Tshepisong", "Turffontein", "Vlakfontein", "Westcliff", "Westdene", "Winchester Hills", "Woodmead", "Wynberg", "Yeoville", "Zakariyya Park"],
+  "Cape Town": ["Acacia Park", "Athlone", "Atlantis", "Bakoven", "Bantry Bay", "Belhar", "Bellville", "Bellville South", "Bergvliet", "Bishop Lavis", "Bishopscourt", "Blackheath", "Bloubergstrand", "Blue Downs", "Bo-Kaap", "Bonteheuwel", "Bothasig", "Brackenfell", "Brooklyn", "Camps Bay", "Cape Town CBD", "Century City", "Claremont", "Clifton", "Clovelly", "Constantia", "Crawford", "Crossroads", "Croydon", "Da Gama Park", "De Waterkant", "Delft", "Devil's Peak Estate", "Diep River", "Dreyersdal", "Dunoon", "Durbanville", "Duynefontein", "Edgemead", "Eerste River", "Elfindale", "Elsie's River", "Epping", "Faure", "Firgrove", "Fisantekraal", "Fish Hoek", "Foreshore", "Fresnaye", "Gardens", "Glencairn", "Goodwood", "Gordon's Bay", "Grassy Park", "Green Point", "Gugulethu", "Hanover Park", "Heathfield", "Heideveld", "Helderberg", "Higgovale", "Hout Bay", "Imizamo Yethu", "Joe Slovo", "Joe Slovo Park", "Joostenbergvlakte", "Kalk Bay", "Kalksteenfontein", "Kenilworth", "Kensington", "Kenwyn", "Khayelitsha", "Killarney Gardens", "Kirstenhof", "Kommetjie", "Kraaifontein", "Kuils River", "Lakeside", "Langa", "Lansdowne", "Lavender Hill", "Llandudno", "Loevenstein", "Lotus River", "Macassar", "Maitland", "Mamre", "Manenberg", "Marina da Gama", "Masiphumelele", "Matroosfontein", "Meadowridge", "Melkbosstrand", "Mfuleni", "Mitchells Plain", "Montague Gardens", "Monte Vista", "Mowbray", "Muizenberg", "Ndabeni", "Newlands", "Noordhoek", "Norwood (Cape Town)", "Nyanga", "Observatory", "Ocean View", "Oranjezicht", "Ottery", "Paarden Eiland", "Panorama", "Parklands", "Parow", "Pelican Park", "Philadelphia", "Philippi", "Pinelands", "Plattekloof", "Plumstead", "Ravensmead", "Retreat", "Richwood", "Rondebosch", "Rondebosch East", "Rugby", "Rylands", "Salt River", "Scarborough", "Schotsche Kloof", "Scottsdene", "Simon's Town", "Sir Lowry's Pass Village", "Somerset West", "Southfield", "St James", "Steenberg", "Strand", "Strandfontein", "Summer Greens", "Sun Valley", "Sunningdale", "Sunnydale", "Table View", "Tamboerskloof", "Thornton", "Three Anchor Bay", "Tokai", "Tyger Valley", "Tygerberg", "University Estate", "V&A Waterfront", "Valhalla Park", "Vredehoek", "Vrygrond", "Walmer Estate", "Welgelegen", "Welgemoed", "Westlake", "Wetton", "Woodstock", "Wynberg", "Ysterplaat", "Zeekoevlei", "Zonnebloem"],
+  "Durban": ["Adams Mission", "Amanzimtoti", "Arena Park", "Assagay", "Avoca", "Bellair", "Berea", "Bluff", "Botha's Hill", "Brighton Beach", "Bulwer", "Cato Crest", "Cato Manor", "Cato Ridge", "Chatsworth", "Clansthal", "Clermont", "Cliffdale", "Cowies Hill", "Craigieburn", "Crestholme", "Drummond", "Durban North", "Essenwood", "Everton", "Folweni", "Forest Hills", "Genazzano", "Gillitts", "Glenwood", "Greyville", "Hillary", "Hillcrest", "Illovo Beach", "Inanda", "Inchanga", "Isipingo", "Isipingo Beach", "Isipingo Hills", "Isipingo Rail", "Kingsburgh", "Kloof", "KwaDabeka", "KwaMakhutha", "KwaMashu", "KwaNdengezi", "KwaXimba", "La Mercy", "Lamontville", "Lotus Park", "Magabeni", "Malvern", "Manor Gardens", "Mariannhill", "Mariannridge", "Memorial Park", "Merebank", "Merewent", "Mobeni", "Molweni", "Montclair", "Morningside", "Mount Edgecombe", "Mount Moreland", "Mount Vernon", "Mpumalanga", "Musgrave", "New Germany", "Newlands East", "Newlands West", "Northdene", "Overport", "Phoenix", "Pinetown", "Prospecton", "Queensburgh", "Reservoir Hills", "Reunion", "Riverhorse Valley", "Rossburgh", "Seaview", "Shallcross", "Shongweni", "Springfield", "Springfield Park", "Stamford Hill", "Summerveld", "Sydenham", "Tongaat Beach", "Treasure Beach", "Umbilo", "Umbumbulu", "Umgababa", "Umhlatuzana", "Umlazi", "Verulam", "Waterfall", "Welbedacht", "Wentworth", "Westbrook", "Westville", "Widenham", "Windermere", "Woodhaven", "Woodlands", "Wyebank", "Yellowwood Park", "eMdloti", "eMkhomazi", "oThongathi", "uMhlanga"],
+  "Pretoria": ["Akasia", "Alphen Park", "Amandasig", "Annlin", "Arcadia", "Ashlea Gardens", "Atteridgeville", "Bashewa", "Berea", "Boardwalk", "Bon Accord", "Booysens", "Boschkop", "Bronberg", "Bronkhorstspruit", "Brooklyn", "Brummeria", "Capital Park", "Centurion", "Chantelle", "Claremont", "Clarina", "Clydesdale", "Colbyn", "Constantia Park", "Cullinan", "Danville", "Daspoort", "Derdepoort", "Die Wilgers", "Doornpoort", "Eastwood", "Eersterust", "Elandspoort", "Elarduspark", "Eldoraigne", "Eloffsdal", "Equestria", "Erasmuskloof", "Erasmusrand", "Faerie Glen", "Ga-Rankuwa", "Garsfontein", "Gezina", "Groenkloof", "Hammanskraal", "Hatfield", "Hazelwood", "Hillcrest", "Irene", "Karen Park", "Kilner Park", "Klerksoord", "Kwaggasrand", "La Montagne", "Lotus Gardens", "Lukasrand", "Lynnwood", "Lynnwood Glen", "Lynnwood Manor", "Lynnwood Ridge", "Mabopane", "Magalieskruin", "Mamelodi", "Maroelana", "Menlo Park", "Menlyn", "Meyerspark", "Montana", "Montana Park", "Mooikloof", "Moreleta Park", "Mountain View", "Muckleneuk", "Newlands (Pretoria)", "Ninapark", "Olympus", "Onderstepoort", "Pretoria Central", "Pretoria Gardens", "Pretoria North", "Pretoria West", "Pretorius Park", "Queenswood", "Rietondale", "Rietvalleipark", "Riviera", "Rosslyn", "Shoshanguve", "Silverlakes", "Silverton", "Sinoville", "Sunnyside", "Temba", "The Orchards", "The Wilds", "Villieria", "Waltloo", "Wapadrand", "Waterkloof", "Waterkloof Glen", "Waterkloof Heights", "Waterkloof Park", "Waterkloof Ridge", "Waverley", "Weavind Park", "Welgevonden", "Willow Park Manor", "Wingate Park", "Winterveld", "Wonderboom", "Wonderboom South"],
+  "Gqeberha": ["Algoa Park", "Bethelsdorp", "Bluewater Bay", "Charlo", "Chatty", "Colchester", "Cotswold", "Despatch", "Fairview", "Framesby", "Gelvandale", "Greenshields Park", "Helenvale", "Humewood", "Kabega", "Kabega Park", "Kariega", "Kensington", "Korsten", "Kragga Kamma", "KwaNobuhle", "Kwazakele", "Lorraine", "Malabar", "Mill Park", "Missionvale", "Motherwell", "Mount Croix", "New Brighton", "Newton Park", "North End", "Redhouse", "Rowallan Park", "Salt Lake", "Schoenmakerskop", "Sidwell", "South End", "St George's Strand", "Struandale", "Summerstrand", "Sunridge Park", "Sydenham", "Theescombe", "Uitenhage", "Van der Stel Township", "Veeplaas", "Walmer", "Wells Estate", "West End", "Westering", "Woodlands", "Zwide"],
+  "Bloemfontein": ["Arboretum", "Bain's Vlei", "Batho", "Bayswater", "Bloemanda", "Bloemfontein Central", "Bochabela", "Botshabelo", "Brandwag", "Dan Pienaar", "Ehrlich Park", "Fauna", "Fichardt Park", "Fleurdal", "Gardenia Park", "Generaal De Wet", "Heidedal", "Helicon Heights", "Heuwelsig", "Hillsboro", "Hillside", "Hilton", "JB Mafora", "Langenhoven Park", "Lourier Park", "Mangaung", "Naval Hill", "Navalsig", "Noordhoek", "Panorama Park", "Park West", "Pellissier", "Pentagon Park", "Phahameng", "Phelindaba", "Rocklands", "Roodewal", "Thaba Nchu", "Uitsig", "Universitas", "Vallombrosa", "Waverley", "Westdene", "Wilgehof", "Willows", "Woodland Hills"],
+  "East London": ["Abbotsford", "Amalinda", "Arcadia", "Baysville", "Beacon Bay", "Beaconhurst", "Bebelele", "Berea", "Bonnie Doon", "Braelyn", "Buffalo Flats", "Bunkers Hill", "Cambridge", "Chiselhurst", "Collondale", "Dorchester Heights", "Duncan Village", "Gately", "Gompo", "Gonubie", "Haven Hills", "Highway Gardens", "Mdantsane", "Morningside", "Nahoon", "North End", "Parkridge", "Parkside", "Peffersville", "Quenera", "Quigney", "Rosemount", "Scenery Park", "Selborne", "Southernwood", "Stirling", "Sunnyridge", "Vincent", "West Bank", "Wilsonia", "Winchester", "Woodleigh"],
+  "Polokwane": ["Annadale", "Bendor", "Broadlands", "Chuene", "Dalmada", "Dikgale", "Fauna Park", "Flora Park", "Greenside", "Hospital Park", "Ivy Park", "Ivydale", "Maja", "Mankweng", "Moletjie", "Moregloed", "Nirvana", "Penina Park", "Sebayeng", "Seshego", "Southern Gateway", "Ster Park", "Thornhill", "Welgelegen", "Westenburg", "Woodlands (Polokwane)"],
+  "Mbombela": ["Alkmaar", "KaBokweni", "KaMsogwaba", "KaNyamazane", "Kamagugu", "Kanyamazane", "Karino", "Mataffin", "Matsulu", "Mbombela Central", "Msogwaba", "Nelspruit CBD", "Nelsville", "Ngodwana", "Orchards", "Pienaar", "Riverside", "Schagen", "Sonheuwel", "Steiltes", "Stonehenge", "The Rest", "Valencia Park", "Vintonia", "West Acres"],
+  "Kimberley": ["Albertynshof", "Ashburnham", "Beaconsfield", "Belgravia", "Cassandra", "Colville", "De Beers", "Diamant Park", "Du Toit's Pan", "Ernestville", "Florianville", "Galeshewe", "Greenpoint", "Greenside", "Hadison Park", "Herlear", "Heuwelsig", "Hillcrest", "Homelite", "Homestead", "Homevale", "Kenilworth (Kimberley)", "Kimberley North", "Lerato Park", "Malay Camp", "Minerva Gardens", "Monument Heights", "New Park", "Newton", "Platfontein", "Rhodesdene", "Riviera", "Roodepan", "Royldene", "Squarehill Park", "Verwoerd Park", "West End"]
+};
+function areasForCity(cityName){ return AREAS[cityName] || []; }
+function areaOptionsHtml(cityName){
+  const areas = areasForCity(cityName);
+  const noneLabel = t("area_none");
+  if(!areas.length) return `<option value="">${t("area_manual")}</option>`;
+  return `<option value="">${noneLabel}</option>` + areas.map(a=>`<option value="${a}">${a}</option>`).join("");
+}
+
 const DAY = 24*60*60*1000;
 const nowTs = Date.now();
 const SEED_REPORTS = [
@@ -1989,7 +2031,7 @@ async function submitReport(report){
     try{
       const { error } = await supa.from("qos_reports").insert([{
         site: SITE_ID,
-        isp: report.isp, stars: report.stars, city: report.city, comment: report.comment,
+        isp: report.isp, stars: report.stars, city: report.city, area: report.area || null, comment: report.comment,
         device_id: SpamGuard.deviceId()
       }]);
       if(error) throw error;
@@ -2048,7 +2090,7 @@ async function submitStatus(entry){
     try{
       const { error } = await supa.from("status_reports").insert([{
         site: SITE_ID,
-        isp: entry.isp, city: entry.city, status: entry.status, comment: entry.comment,
+        isp: entry.isp, city: entry.city, area: entry.area || null, status: entry.status, comment: entry.comment,
         device_id: SpamGuard.deviceId()
       }]);
       if(error) throw error;
@@ -2070,7 +2112,7 @@ async function submitSpeed(entry){
   if(supa){
     const baseRow = {
       site: SITE_ID,
-      isp: entry.isp, city: entry.city, download_mbps: entry.download_mbps, upload_mbps: entry.upload_mbps, comment: entry.comment,
+      isp: entry.isp, city: entry.city, area: entry.area || null, download_mbps: entry.download_mbps, upload_mbps: entry.upload_mbps, comment: entry.comment,
       device_id: SpamGuard.deviceId()
     };
     // Richer columns from the built-in automatic speed test (v1.1.0+). If the
@@ -2116,7 +2158,7 @@ async function submitConversion(entry){
     try{
       const { error } = await supa.from("conversions").insert([{
         site: SITE_ID,
-        to_isp: entry.to_isp, from_isp: entry.from_isp, reasons: entry.reasons, city: entry.city, comment: entry.comment,
+        to_isp: entry.to_isp, from_isp: entry.from_isp, reasons: entry.reasons, city: entry.city, area: entry.area || null, comment: entry.comment,
         device_id: SpamGuard.deviceId()
       }]);
       if(error) throw error;
@@ -2207,6 +2249,8 @@ function applyStaticTranslations(){
 
   const impactCitySelect = document.getElementById("impactCitySelect");
   impactCitySelect.innerHTML = `<option value="">${t("city_manual")}</option>` + CITIES.map(c=>`<option value="${c.name}">${c.name}</option>`).join("");
+  const impactAreaSelectInit = document.getElementById("impactAreaSelect");
+  if(impactAreaSelectInit && impactAreaSelectInit.options.length <= 1) impactAreaSelectInit.innerHTML = areaOptionsHtml(impactCitySelect.value);
 
   document.getElementById("simpleModeLabel").textContent = document.body.classList.contains("simple-mode") ? t("simple_mode_on") : t("simple_mode_off");
 
@@ -2515,6 +2559,9 @@ function renderList(){
                   <option value="">${t("city_manual")}</option>
                   ${CITIES.map(c=>`<option value="${c.name}">${c.name}</option>`).join("")}
                 </select>
+                <select class="city-select" data-role="statusAreaSelect">
+                  <option value="">${t("area_manual")}</option>
+                </select>
               </div>
               <div class="loc-status" data-role="statusLocStatus"></div>
               <textarea class="comment-box" data-role="statusCommentBox" maxlength="500" placeholder="${t("comment_placeholder")}"></textarea>
@@ -2554,6 +2601,9 @@ function renderList(){
                   <option value="">${t("city_manual")}</option>
                   ${CITIES.map(c=>`<option value="${c.name}">${c.name}</option>`).join("")}
                 </select>
+                <select class="city-select" data-role="speedAreaSelect">
+                  <option value="">${t("area_manual")}</option>
+                </select>
               </div>
               <div class="loc-status" data-role="speedLocStatus"></div>
               <textarea class="comment-box" data-role="speedCommentBox" maxlength="500" placeholder="${t("comment_placeholder")}"></textarea>
@@ -2584,6 +2634,9 @@ function renderList(){
                 <select class="city-select" data-role="citySelect">
                   <option value="">${t("city_manual")}</option>
                   ${CITIES.map(c=>`<option value="${c.name}">${c.name}</option>`).join("")}
+                </select>
+                <select class="city-select" data-role="areaSelect">
+                  <option value="">${t("area_manual")}</option>
                 </select>
               </div>
               <div class="loc-status" data-role="locStatus"></div>
@@ -2639,6 +2692,7 @@ function renderList(){
     const locBtn = rowEl.querySelector('[data-role="locBtn"]');
     const locStatus = rowEl.querySelector('[data-role="locStatus"]');
     const citySelect = rowEl.querySelector('[data-role="citySelect"]');
+    const areaSelect = rowEl.querySelector('[data-role="areaSelect"]');
 
     locBtn.addEventListener("click",(e)=>{
       e.stopPropagation();
@@ -2652,6 +2706,8 @@ function renderList(){
         const { city, distanceKm } = nearestCity(latitude, longitude);
         rateForm.dataset.city = city;
         citySelect.value = city;
+        delete rateForm.dataset.area;
+        if(areaSelect) areaSelect.innerHTML = areaOptionsHtml(city);
         locStatus.textContent = "📍 Nearest tracked city: "+city+" (~"+distanceKm+" km away)";
       }, err=>{
         locStatus.textContent = "Couldn't get your location (" + err.message + ") — pick a city manually.";
@@ -2661,6 +2717,14 @@ function renderList(){
     citySelect.addEventListener("click", (e)=> e.stopPropagation());
     citySelect.addEventListener("change",(e)=>{
       rateForm.dataset.city = citySelect.value;
+      delete rateForm.dataset.area;
+      if(areaSelect) areaSelect.innerHTML = areaOptionsHtml(citySelect.value);
+    if(areaSelect){
+      areaSelect.addEventListener("click", (e)=> e.stopPropagation());
+      areaSelect.addEventListener("change",(e)=>{
+        rateForm.dataset.area = areaSelect.value;
+      });
+    }
       locStatus.textContent = citySelect.value ? "City set to "+citySelect.value : "";
     });
 
@@ -2687,8 +2751,9 @@ function renderList(){
         return;
       }
       const city = rateForm.dataset.city || "Unknown";
+      const area = rateForm.dataset.area || null;
       const phone = (phoneInput.value||"").trim();
-      submitReport({ isp:name, stars, comment:(commentBox.value||"").trim(), city, ts: Date.now() });
+      submitReport({ isp:name, stars, comment:(commentBox.value||"").trim(), city, area, ts: Date.now() });
       if(phone) upsertCustomer(phone, detectIspFromPhone(phone));
       phoneInput.value = ""; phoneHint.textContent = "";
     });
@@ -2728,6 +2793,7 @@ function renderList(){
     const statusLocBtn = rowEl.querySelector('[data-role="statusLocBtn"]');
     const statusLocStatus = rowEl.querySelector('[data-role="statusLocStatus"]');
     const statusCitySelect = rowEl.querySelector('[data-role="statusCitySelect"]');
+    const statusAreaSelect = rowEl.querySelector('[data-role="statusAreaSelect"]');
 
     statusLocBtn.addEventListener("click",(e)=>{
       e.stopPropagation();
@@ -2741,6 +2807,8 @@ function renderList(){
         const { city, distanceKm } = nearestCity(latitude, longitude);
         statusForm.dataset.city = city;
         statusCitySelect.value = city;
+        delete statusForm.dataset.area;
+        if(statusAreaSelect) statusAreaSelect.innerHTML = areaOptionsHtml(city);
         statusLocStatus.textContent = "📍 Nearest tracked city: "+city+" (~"+distanceKm+" km away)";
       }, err=>{
         statusLocStatus.textContent = "Couldn't get your location (" + err.message + ") — pick a city manually.";
@@ -2750,6 +2818,14 @@ function renderList(){
     statusCitySelect.addEventListener("click", (e)=> e.stopPropagation());
     statusCitySelect.addEventListener("change",(e)=>{
       statusForm.dataset.city = statusCitySelect.value;
+      delete statusForm.dataset.area;
+      if(statusAreaSelect) statusAreaSelect.innerHTML = areaOptionsHtml(statusCitySelect.value);
+    if(statusAreaSelect){
+      statusAreaSelect.addEventListener("click", (e)=> e.stopPropagation());
+      statusAreaSelect.addEventListener("change",(e)=>{
+        statusForm.dataset.area = statusAreaSelect.value;
+      });
+    }
       statusLocStatus.textContent = statusCitySelect.value ? "City set to "+statusCitySelect.value : "";
     });
 
@@ -2765,7 +2841,8 @@ function renderList(){
         return;
       }
       const city = statusForm.dataset.city || "Unknown";
-      submitStatus({ isp:name, city, status, comment:(statusCommentBox.value||"").trim(), ts: Date.now() });
+      const area = statusForm.dataset.area || null;
+      submitStatus({ isp:name, city, area, status, comment:(statusCommentBox.value||"").trim(), ts: Date.now() });
       statusForm.dataset.status = "";
       statusChoices.querySelectorAll(".status-choice").forEach(b=>b.classList.remove("active"));
       statusCommentBox.value = "";
@@ -2786,6 +2863,7 @@ function renderList(){
     const speedLocBtn = rowEl.querySelector('[data-role="speedLocBtn"]');
     const speedLocStatus = rowEl.querySelector('[data-role="speedLocStatus"]');
     const speedCitySelect = rowEl.querySelector('[data-role="speedCitySelect"]');
+    const speedAreaSelect = rowEl.querySelector('[data-role="speedAreaSelect"]');
 
     speedLocBtn.addEventListener("click",(e)=>{
       e.stopPropagation();
@@ -2799,6 +2877,8 @@ function renderList(){
         const { city, distanceKm } = nearestCity(latitude, longitude);
         speedForm.dataset.city = city;
         speedCitySelect.value = city;
+        delete speedForm.dataset.area;
+        if(speedAreaSelect) speedAreaSelect.innerHTML = areaOptionsHtml(city);
         speedLocStatus.textContent = "📍 Nearest tracked city: "+city+" (~"+distanceKm+" km away)";
       }, err=>{
         speedLocStatus.textContent = "Couldn't get your location (" + err.message + ") — pick a city manually.";
@@ -2808,6 +2888,14 @@ function renderList(){
     speedCitySelect.addEventListener("click", (e)=> e.stopPropagation());
     speedCitySelect.addEventListener("change",(e)=>{
       speedForm.dataset.city = speedCitySelect.value;
+      delete speedForm.dataset.area;
+      if(speedAreaSelect) speedAreaSelect.innerHTML = areaOptionsHtml(speedCitySelect.value);
+    if(speedAreaSelect){
+      speedAreaSelect.addEventListener("click", (e)=> e.stopPropagation());
+      speedAreaSelect.addEventListener("change",(e)=>{
+        speedForm.dataset.area = speedAreaSelect.value;
+      });
+    }
       speedLocStatus.textContent = speedCitySelect.value ? "City set to "+speedCitySelect.value : "";
     });
 
@@ -2838,10 +2926,11 @@ function renderList(){
         return;
       }
       const city = speedForm.dataset.city || "Unknown";
+      const area = speedForm.dataset.area || null;
       let extra = {};
       try{ extra = rowEl.dataset.speedExtra ? JSON.parse(rowEl.dataset.speedExtra) : {}; }catch(parseErr){}
       submitSpeed({
-        isp:name, city, download_mbps: downloadVal, upload_mbps: uploadVal,
+        isp:name, city, area, download_mbps: downloadVal, upload_mbps: uploadVal,
         comment:(speedCommentBox.value||"").trim(), ts: Date.now(),
         test_method: extra.test_method || "manual",
         latency_idle_ms: extra.latency_idle_ms ?? null,
@@ -3115,6 +3204,7 @@ document.getElementById("suggestSubmitBtn").addEventListener("click", ()=>{
 document.getElementById("impactLocBtn").addEventListener("click", ()=>{
   const status = document.getElementById("impactLocStatus");
   const citySelect = document.getElementById("impactCitySelect");
+  const areaSelect = document.getElementById("impactAreaSelect");
   if(!navigator.geolocation){
     status.textContent = "Geolocation isn't supported here — pick a city manually.";
     return;
@@ -3124,6 +3214,9 @@ document.getElementById("impactLocBtn").addEventListener("click", ()=>{
     const { latitude, longitude } = pos.coords;
     const { city, distanceKm } = nearestCity(latitude, longitude);
     citySelect.value = city;
+    // Geolocation only ever resolves to a tracked city, never an area — the tester
+    // still picks their own area/suburb by hand (or leaves it blank).
+    if(areaSelect) areaSelect.innerHTML = areaOptionsHtml(city);
     status.textContent = "📍 Nearest tracked city: "+city+" (~"+distanceKm+" km away)";
   }, err=>{
     status.textContent = "Couldn't get your location (" + err.message + ") — pick a city manually.";
@@ -3155,6 +3248,11 @@ document.getElementById("impactPhone").addEventListener("input", ()=>{
 document.getElementById("impactSubmitBtn").addEventListener("click", ()=>{
   const toIsp = document.getElementById("impactToIsp").value;
   const fromIsp = document.getElementById("impactFromIsp").value || null;
+  document.getElementById("impactCitySelect").addEventListener("change", ()=>{
+  const areaSelect = document.getElementById("impactAreaSelect");
+  if(areaSelect) areaSelect.innerHTML = areaOptionsHtml(document.getElementById("impactCitySelect").value);
+});
+
   const city = document.getElementById("impactCitySelect").value || "Unknown";
   const comment = document.getElementById("impactComment").value.trim();
   const reasons = Array.from(document.querySelectorAll('[data-role="reasonCheck"]:checked')).map(el=>el.value);
@@ -3162,7 +3260,8 @@ document.getElementById("impactSubmitBtn").addEventListener("click", ()=>{
   const phone = document.getElementById("impactPhone").value.trim();
   if(!toIsp){ status.textContent = "Please choose which ISP you switched to / signed up with."; return; }
   if(!phone || !isValidPhone(phone)){ status.textContent = t("phone_required_note"); return; }
-  submitConversion({ to_isp: toIsp, from_isp: fromIsp, reasons, city, comment, ts: Date.now() });
+  const area = document.getElementById("impactAreaSelect").value || null;
+  submitConversion({ to_isp: toIsp, from_isp: fromIsp, reasons, city, area, comment, ts: Date.now() });
   upsertCustomer(phone, detectIspFromPhone(phone));
   document.getElementById("impactComment").value = "";
   document.getElementById("impactPhone").value = "";
